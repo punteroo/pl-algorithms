@@ -13,7 +13,7 @@
  */
 
 /**
- * @typedef {Object} Node A visual representation of a node in the canvas.
+ * @typedef {Object} CanvasNode A visual representation of a node in the canvas.
  *
  * @property {number} id The node's unique identifier.
  * @property {number} x The node's x-coordinate.
@@ -38,7 +38,7 @@ const ctx = canvas.getContext("2d");
 /**
  * Main variable where the drawing's nodes are stored.
  *
- * @type {Array<Node>}
+ * @type {Array<CanvasNode>}
  */
 const nodes = [],
   /**
@@ -51,7 +51,7 @@ const nodes = [],
 /**
  * Global variable to store the selected node (when creating a new connection)
  *
- * @type {Node}
+ * @type {CanvasNode}
  */
 let selectedNode = null;
 
@@ -72,7 +72,7 @@ let offsetX,
 /**
  * Global variable to store the first node selected when creating a new connection.
  *
- * @type {Node}
+ * @type {CanvasNode}
  */
 let firstNode = null;
 
@@ -99,13 +99,23 @@ document.getElementById("exportButton").addEventListener("click", exportData);
 
 /** Assigns an event listener to import a text file into the canvas. */
 document.getElementById("importButton").addEventListener("click", () => {
-  if (confirm("This will reset the canvas. Do you want to continue?")) {
+  // If its already reset, just go ahead and import the file.
+  if (nodes.length === 0) {
     document.getElementById("importFile").click();
+    return;
   }
+
+  if (
+    confirm("Esto reemplazará los nodos y conexiones actuales. ¿Estás seguro?")
+  )
+    document.getElementById("importFile").click();
 });
 
 /** Assigns an event listener to the file input to import the data. */
 document.getElementById("importFile").addEventListener("change", importData);
+
+/** Assigns an event listener to the checkbox to redraw the canvas when its value changes. */
+document.getElementById("enableDirectedEdges").addEventListener("change", draw);
 
 /**
  * Assigns event listeners to the canvas to handle the mouse events.
@@ -152,7 +162,7 @@ canvas.addEventListener("mousedown", (e) => {
 
           do {
             value = prompt(
-              "Enter a value for the connection (non-negative number):"
+              "Introduzca el valor deseado de la arista (numero no negativo):"
             );
 
             if (value === null) {
@@ -207,6 +217,8 @@ canvas.addEventListener("mousedown", (e) => {
       }
     }
   }
+
+  checkForm();
 });
 
 canvas.addEventListener("mousemove", (e) => {
@@ -248,13 +260,11 @@ canvas.addEventListener("dblclick", (e) => {
 
       do {
         value = prompt(
-          "Enter a new value for the connection (non-negative number):",
+          "Introduzca el nuevo valor para esta arista (no negativo):",
           clickedEdge.value
         );
 
-        if (value === null) {
-          return;
-        }
+        if (value === null) return;
       } while (isNaN(value) || Number(value) < 0);
 
       clickedEdge.value = Number(value);
@@ -262,6 +272,8 @@ canvas.addEventListener("dblclick", (e) => {
       draw();
     }
   }
+
+  checkForm();
 });
 
 canvas.addEventListener("contextmenu", (e) => {
@@ -313,6 +325,40 @@ function isPointOnLineSegment(edge, x, y) {
 }
 
 /**
+ * Function to draw an arrow from one point to another.
+ *
+ * @param {Object} from - The starting point of the arrow.
+ * @param {Object} to - The ending point of the arrow.
+ */
+function drawArrow(from, to) {
+  const headLength = 15; // Length of the arrow head
+  const angle = Math.atan2(to.y - from.y, to.x - from.x);
+
+  // Coordinates of the end of the line (before the arrowhead)
+  const arrowX = to.x - headLength * Math.cos(angle);
+  const arrowY = to.y - headLength * Math.sin(angle);
+
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(to.x, to.y);
+  ctx.stroke();
+
+  // Draw arrowhead
+  ctx.beginPath();
+  ctx.moveTo(arrowX, arrowY);
+  ctx.lineTo(
+    arrowX - headLength * Math.cos(angle - Math.PI / 6),
+    arrowY - headLength * Math.sin(angle - Math.PI / 6)
+  );
+  ctx.moveTo(arrowX, arrowY);
+  ctx.lineTo(
+    arrowX - headLength * Math.cos(angle + Math.PI / 6),
+    arrowY - headLength * Math.sin(angle + Math.PI / 6)
+  );
+  ctx.stroke();
+}
+
+/**
  * Main function used to instance a new re-draw of the entire canvas.
  *
  * This is used when an update is done on the nodes or its connections.
@@ -322,13 +368,16 @@ function isPointOnLineSegment(edge, x, y) {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw edges
+  // Check the value of the checkbox
+  const enableDirectedEdges = document.getElementById(
+    "enableDirectedEdges"
+  ).checked;
 
+  // Draw edges
   ctx.lineWidth = 5; // Increase the line width
 
   edges.forEach((edge) => {
     ctx.beginPath();
-
     ctx.moveTo(edge.from.x, edge.from.y);
     ctx.lineTo(edge.to.x, edge.to.y);
     ctx.stroke();
@@ -349,12 +398,14 @@ function draw() {
     // Draw the text.
     ctx.fillStyle = "black";
     ctx.fillText(edge.value, textX, textY);
+
+    // Draw arrow if directed edges are enabled
+    if (enableDirectedEdges) drawArrow(edge.from, edge.to);
   });
 
   // If a temporary line is being drawn, draw it on the canvas (when creating a new connection).
   if (tempLine) {
     ctx.beginPath();
-
     ctx.moveTo(tempLine.from.x, tempLine.from.y);
     ctx.lineTo(tempLine.to.x, tempLine.to.y);
 
@@ -384,17 +435,20 @@ function draw() {
 
   ctx.font = "14px Arial";
 
-  ctx.fillText(`Total nodes: ${nodes.length}`, 10, 20);
+  ctx.fillText(`Cantidad de Nodos: ${nodes.length}`, 10, 20);
 
   // Map connections to a string.
   const connections = edges.map(
-    (edge) => `(${edge.from.id} <-> ${edge.to.id}: ${edge.value})`
+    (edge) =>
+      `(${edge.from.id} ${enableDirectedEdges ? "->" : "<->"} ${edge.to.id}: ${
+        edge.value
+      })`
   );
 
   // Add a new line for every 15 connections to avoid overflow.
-  ctx.fillText(`Connections:`, 10, 40);
-  for (let i = 0; i < connections.length; i += 15)
-    ctx.fillText(connections.slice(i, i + 15).join(", "), 10, 60 + i * 20);
+  ctx.fillText(`Aristas`, 10, 40);
+  for (let i = 0; i < connections.length; i += 10)
+    ctx.fillText(connections.slice(i, i + 10).join(", "), 10, 60 + i * 2);
 }
 
 /**
@@ -497,7 +551,7 @@ function importData(event) {
 
           // Validate the extracted values from the node.
           if (isNaN(id) || isNaN(x) || isNaN(y))
-            throw new Error("Invalid node format");
+            throw new Error(`El formato de nodo provisto es invalido: ${line}`);
 
           // Add the node to the nodes array.
           nodes.push({ id, x, y, radius: 20 });
@@ -517,7 +571,7 @@ function importData(event) {
 
         // Validate the extracted values from the connections.
         if (isNaN(from) || isNaN(to) || isNaN(value))
-          throw new Error("Invalid edge format");
+          throw new Error(`El formato de arista provisto es invalido: ${line}`);
 
         // Find the parsed nodes these connections point to.
         const fromNode = nodes.find((node) => node.id === from),
@@ -528,7 +582,7 @@ function importData(event) {
           edges.push({ from: fromNode, to: toNode, value });
       }
     } catch (error) {
-      alert("The file format is corrupted.");
+      alert(`Ocurrio un error al intentar importar el archivo: ${error}`);
 
       resetCanvas();
 
@@ -536,6 +590,8 @@ function importData(event) {
     }
 
     draw();
+
+    checkForm();
   };
 
   reader.readAsText(file);

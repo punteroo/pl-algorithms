@@ -12,20 +12,216 @@
 
       .controls {
         margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        width: 50%;
+      }
+
+      .container {
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
       }
     </style>
   </head>
 
   <body>
     <div class="controls">
-      <button id="resetButton">Reset</button>
-      <button id="exportButton">Export</button>
+      <div>
+        <button id="resetButton">Resetear</button>
+        <button id="exportButton">Exportar Grafo</button>
 
-      <input type="file" id="importFile" style="display: none" />
-      <button id="importButton">Import</button>
+        <input type="file" id="importFile" style="display: none" />
+        <button id="importButton">Importar Grafo</button>
+      </div>
+
+      <div>
+        <input type="checkbox" id="enableDirectedEdges" />
+        <label for="enableDirectedEdges">Permitir aristas dirigidas</label>
+      </div>
     </div>
 
-    <canvas id="canvas" width="1200" height="600"></canvas>
+    <div class="container">
+      <div>
+        <canvas id="canvas" width="800" height="600"></canvas>
+        <div style="width: 100%">
+          <h2>Controles y Uso del Canvas</h2>
+          <p>
+            Si desea acceder a funcionalidades como <b>flujo maximo</b> y el
+            algoritmo <b>Dijkstra</b>, debera habilitar la casilla de
+            <b>Permitir aristas dirigidas</b> para modelar grafos con direccion.
+            En caso de que no lo haga, el programa
+            <b>automaticamente</b> duplicara las aristas para simular la
+            bidireccionalidad del grafo.
+          </p>
+          <p>
+            <b>Controles:</b>
+          </p>
+          <div style="display: flex; gap: 10px; width: 100%">
+            <div>
+              <ul>
+                <li><b>Click izquierdo</b> para añadir nodos.</li>
+                <li>
+                  <b>Click derecho</b> para eliminar nodos (y sus aristas si
+                  existen).
+                </li>
+                <li>
+                  <b>Click y arrastra</b> un nodo para moverlo a traves del
+                  canvas.
+                </li>
+              </ul>
+            </div>
+            <div>
+              <ul>
+                <li>
+                  <b>Doble Click izquierdo</b> sobre un nodo y arrastra hacia
+                  otro nodo para crear una arista, haciendo click en el nodo
+                  destino.
+                </li>
+                <li>
+                  <b>Doble Click izquierdo</b> en una arista para editar su
+                  valor.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form" id="algorithm-form">
+        <div class="form">
+          <label for="algorithmSelect">Algoritmo</label>
+          <select id="algorithmSelect">
+            <option value="prim">Prim</option>
+            <option value="kruskal">Kruskal</option>
+            <option value="dijkstra">Dijkstra</option>
+          </select>
+
+          <label for="startNode">Nodo de inicio</label>
+          <input type="number" id="startNode" />
+
+          <button id="runButton" onclick="runAlgorithm()">Ejecutar</button>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 7px">
+          <div style="width: 100%">
+            <button id="downloadResult" onclick="downloadResultAsImage()">
+              Descargar como Imagen
+            </button>
+            <button id="downloadResultJSON" onclick="downloadResultAsJSON()">
+              Descargar como JSON
+            </button>
+          </div>
+          <canvas id="resultCanvas" width="800" height="600"></canvas>
+
+          <script>
+            /**
+             * Downloads the result canvas as an image.
+             */
+            function downloadResultAsImage() {
+              const canvas = document.getElementById("resultCanvas"),
+                a = document.createElement("a");
+
+              // Check if the canvas is empty.
+              if (
+                canvas.toDataURL() ===
+                document.getElementById("canvas").toDataURL()
+              ) {
+                alert("No hay resultados para descargar.");
+                return;
+              }
+
+              a.href = canvas.toDataURL();
+              a.download = `resultado-${
+                document.getElementById("algorithmSelect").value
+              }_${new Date().toISOString().split("T")[0]}.png`;
+              a.click();
+            }
+
+            /**
+             * Downloads the result as a JSON file.
+             */
+            function downloadResultAsJSON() {
+              const a = document.createElement("a"),
+                result = {
+                  algorithm: document.getElementById("algorithmSelect").value,
+                  startNode: document.getElementById("startNode").value,
+                  edges: edges,
+                };
+
+              // Check if the canvas is empty.
+              const canvas = document.getElementById("resultCanvas");
+              if (
+                canvas.toDataURL() ===
+                document.getElementById("canvas").toDataURL()
+              ) {
+                alert("No hay resultados para descargar.");
+                return;
+              }
+
+              a.href = `data:text/json;charset=utf-8,${encodeURIComponent(
+                JSON.stringify(result)
+              )}`;
+              a.download = `resultado-${
+                document.getElementById("algorithmSelect").value
+              }_${new Date().toISOString().split("T")[0]}.json`;
+
+              a.click();
+            }
+          </script>
+        </div>
+      </div>
+    </div>
+
     <script src="./scripts/algorithm.canvas.js"></script>
+    <script src="./scripts/algorithm.implementation.js"></script>
+
+    <script>
+      // Disable form elements while edges are being drawn or no edges exist.
+      function disableForm() {
+        document.getElementById("algorithmSelect").disabled = true;
+        document.getElementById("startNode").disabled = true;
+        document.getElementById("runButton").disabled = true;
+      }
+
+      // Enable form elements when edges exist.
+      function enableForm() {
+        document.getElementById("algorithmSelect").disabled = false;
+        document.getElementById("startNode").disabled = false;
+        document.getElementById("runButton").disabled = false;
+      }
+
+      function checkForm() {
+        if (edges.length === 0 || tempLine !== null) disableForm();
+        else enableForm();
+      }
+
+      // Listen for the "algorithmSelect" change event.
+      // If the kruskal algorithm is selected, disable the "startNode" input.
+      document
+        .getElementById("algorithmSelect")
+        .addEventListener("change", () => {
+          if (document.getElementById("algorithmSelect").value === "kruskal")
+            document.getElementById("startNode").disabled = true;
+          else document.getElementById("startNode").disabled = false;
+
+          // If selecting Dijkstra, automatically enable directed edges and disable the checkbox.
+          if (document.getElementById("algorithmSelect").value === "dijkstra") {
+            document.getElementById("enableDirectedEdges").checked = true;
+            document.getElementById("enableDirectedEdges").disabled = true;
+
+            draw();
+          } else {
+            document.getElementById("enableDirectedEdges").disabled = false;
+          }
+        });
+
+      checkForm();
+      draw();
+    </script>
   </body>
 </html>
