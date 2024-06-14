@@ -555,21 +555,12 @@ function exportData() {
  * Imports data from a text file into the canvas.
  *
  * @param {any} event The input event with the file data.
+ * @param {string} [content] Optional. If no file is provided, read directly from the provided content here.
  *
  * @returns {void}
  */
-function importData(event) {
-  // Obtain the file from the input event.
-  const file = event.target.files[0];
-
-  // If no file is selected, return.
-  if (!file) return;
-
-  // Create a new FileReader to read the file's content.
-  const reader = new FileReader();
-
-  // Read its contents to validate the format.
-  reader.onload = function (e) {
+function importData(event, content = undefined) {
+  function readFileContent(e) {
     const content = e.target.result;
 
     // Split the content into lines and remove empty lines.
@@ -645,7 +636,24 @@ function importData(event) {
     draw();
 
     checkForm();
-  };
+  }
+
+  // Allow the process to run with a provided content, if provided.
+  if (content !== undefined) {
+    return readFileContent({ target: { result: content } });
+  }
+
+  // Obtain the file from the input event.
+  const file = event.target.files[0];
+
+  // If no file is selected, return.
+  if (!file) return;
+
+  // Create a new FileReader to read the file's content.
+  const reader = new FileReader();
+
+  // Read its contents to validate the format.
+  reader.onload = readFileContent;
 
   reader.readAsText(file);
 

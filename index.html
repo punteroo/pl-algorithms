@@ -38,6 +38,48 @@
 
         <input type="file" id="importFile" style="display: none" />
         <button id="importButton">Importar Grafo</button>
+
+        <select id="exampleExcercises">
+          <option value="" disabled selected hidden>
+            o seleccione un ejercicio de ejemplo haciendo click aqui
+          </option>
+          <option value="Ejercicio_1_Redes_IO.txt">
+            Ejercicio 1 - Redes de IO
+          </option>
+          <option value="Ejercicio_FlujoMaximo.txt">
+            Ejercicio para Flujo Maximo
+          </option>
+          <option value="Ejercicio_FlujoMaximo_2.txt">
+            Ejercicio para Flujo Maximo II
+          </option>
+        </select>
+
+        <button id="loadExample" onclick="loadExampleExercise()">
+          Cargar Ejercicio
+        </button>
+
+        <script>
+          // Function that preloads an example exercise from the 'exercises' folder.
+          function loadExampleExercise() {
+            // Fetch the selected exercise txt file from the remote.
+            fetch(
+              `https://punteroo.github.io/pl-algorithms/exercises/${
+                document.getElementById("exampleExcercises").value
+              }`
+            )
+              .then((response) => response.text())
+              .then((data) => {
+                // Import the data.
+                importData(null, data);
+              })
+              .catch((e) => {
+                alert(
+                  `Algo salio mal mientras se cargaba el ejercicio de ejemplo: ${e}`
+                );
+                console.error(e);
+              });
+          }
+        </script>
       </div>
 
       <div>
@@ -48,7 +90,7 @@
 
     <div class="container">
       <div>
-        <canvas id="canvas" width="800" height="600"></canvas>
+        <canvas id="canvas" width="800" height="550"></canvas>
         <div style="width: 100%">
           <h2>Controles y Uso del Canvas</h2>
           <p>
@@ -116,7 +158,7 @@
               Descargar como JSON
             </button>
           </div>
-          <canvas id="resultCanvas" width="800" height="600"></canvas>
+          <canvas id="resultCanvas" width="800" height="550"></canvas>
 
           <div style="line-height: 12px">
             <h2>Flujo Maximo</h2>
@@ -207,6 +249,21 @@
         </div>
       </div>
     </div>
+
+    <footer style="text-align: center; display: relative">
+      <p>
+        <a href="https://github.com/punteroo/pl-algorithms" target="_blank"
+          >GitHub</a
+        >
+        | Copyright
+        <b
+          style="cursor: pointer; color: blue"
+          title="Lucas 'punteroo' Maza, Leopoldo Martini, Sebastian Mosca, Santiago Pedraza, Martin Gabetta, Nicolas Mairone, Tomas Zegatti"
+          >Grupo LLSSMNT</b
+        >
+        UTN FRVM 2024
+      </p>
+    </footer>
 
     <script src="./scripts/algorithm.canvas.js"></script>
     <script src="./scripts/algorithm.implementation.js"></script>
