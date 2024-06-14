@@ -409,3 +409,84 @@ function applyDijkstrasAlgorithm(
 
   return shortestPathEdges;
 }
+
+/**
+ * Applies the Ford-Fulkerson algorithm to find the maximum flow in a graph.
+ *
+ * @param {Edge[]} edges The array of edges in the graph.
+ * @param {CanvasNode} source The source node for the flow.
+ * @param {CanvasNode} sink The sink node for the flow.
+ *
+ * @returns {number} The maximum flow from the source to the sink.
+ */
+function fordFulkerson(edges, source, sink) {
+  // Create a residual graph and fill it with given capacities in the original graph
+  const residualGraph = new Map();
+
+  // Initialize the residual graph
+  edges.forEach((edge) => {
+    if (!residualGraph.has(edge.from.id)) {
+      residualGraph.set(edge.from.id, new Map());
+    }
+    if (!residualGraph.has(edge.to.id)) {
+      residualGraph.set(edge.to.id, new Map());
+    }
+    residualGraph.get(edge.from.id).set(edge.to.id, edge.value);
+    if (!residualGraph.get(edge.to.id).has(edge.from.id)) {
+      residualGraph.get(edge.to.id).set(edge.from.id, 0); // Add reverse edge with 0 initial capacity
+    }
+  });
+
+  // A function to perform BFS and find an augmenting path in the residual graph
+  function bfs(parent) {
+    const visited = new Set();
+    const queue = [source.id];
+    visited.add(source.id);
+
+    while (queue.length > 0) {
+      const u = queue.shift();
+
+      const neighbors = residualGraph.get(u);
+      if (neighbors) {
+        for (const [v, capacity] of neighbors) {
+          if (!visited.has(v) && capacity > 0) {
+            queue.push(v);
+            visited.add(v);
+            parent[v] = u;
+            if (v === sink.id) {
+              return true; // If we reached the sink, we found an augmenting path
+            }
+          }
+        }
+      }
+    }
+    return false; // No augmenting path found
+  }
+
+  // Initialize parent array to store the path
+  const parent = {};
+
+  let maxFlow = 0;
+
+  // Augment the flow while there is a path from source to sink
+  while (bfs(parent)) {
+    // Find the maximum flow through the path found by BFS
+    let pathFlow = Infinity;
+    for (let v = sink.id; v !== source.id; v = parent[v]) {
+      const u = parent[v];
+      pathFlow = Math.min(pathFlow, residualGraph.get(u).get(v));
+    }
+
+    // Update residual capacities of the edges and reverse edges along the path
+    for (let v = sink.id; v !== source.id; v = parent[v]) {
+      const u = parent[v];
+      residualGraph.get(u).set(v, residualGraph.get(u).get(v) - pathFlow);
+      residualGraph.get(v).set(u, residualGraph.get(v).get(u) + pathFlow);
+    }
+
+    // Add the path flow to the overall flow
+    maxFlow += pathFlow;
+  }
+
+  return maxFlow;
+}

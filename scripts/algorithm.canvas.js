@@ -115,7 +115,25 @@ document.getElementById("importButton").addEventListener("click", () => {
 document.getElementById("importFile").addEventListener("change", importData);
 
 /** Assigns an event listener to the checkbox to redraw the canvas when its value changes. */
-document.getElementById("enableDirectedEdges").addEventListener("change", draw);
+document
+  .getElementById("enableDirectedEdges")
+  .addEventListener("change", () => {
+    if (!document.getElementById("enableDirectedEdges").checked) {
+      for (let i = edges.length - 1; i >= 0; i--) {
+        const edge = edges[i];
+        const duplicates = edges.filter(
+          (e) =>
+            (e.from === edge.from && e.to === edge.to) ||
+            (e.from === edge.to && e.to === edge.from)
+        );
+
+        if (duplicates.length > 1) {
+          edges.splice(i, 1);
+        }
+      }
+    }
+    draw();
+  });
 
 /**
  * Assigns event listeners to the canvas to handle the mouse events.
@@ -167,32 +185,36 @@ canvas.addEventListener("mousedown", (e) => {
 
             if (value === null) {
               firstNode = null;
-
               tempLine = null;
-
               draw();
-
               return;
             }
           } while (isNaN(value) || Number(value) < 0);
+
+          const enableDirectedEdges = document.getElementById(
+            "enableDirectedEdges"
+          ).checked;
+          const isDuplicateEdge = edges.some(
+            (edge) =>
+              (edge.from === firstNode && edge.to === clickedNode) ||
+              (edge.from === clickedNode && edge.to === firstNode)
+          );
 
           edges.push({
             from: firstNode,
             to: clickedNode,
             value: Number(value),
+            offset: enableDirectedEdges && isDuplicateEdge ? 10 : 0,
           });
 
           draw();
         }
 
         firstNode = null;
-
         tempLine = null;
       } else {
         firstNode = null;
-
         tempLine = null;
-
         draw();
       }
     } else {
@@ -289,11 +311,24 @@ canvas.addEventListener("contextmenu", (e) => {
  * @returns {boolean} True if the edge exists, false otherwise.
  */
 function edgeExists(node1, node2) {
-  return edges.some(
+  const enableDirectedEdges = document.getElementById(
+    "enableDirectedEdges"
+  ).checked;
+  const existingEdges = edges.filter(
     (edge) =>
       (edge.from === node1 && edge.to === node2) ||
       (edge.from === node2 && edge.to === node1)
   );
+
+  if (enableDirectedEdges) {
+    // Allow up to 2 edges, but not in the same direction
+    const sameDirectionEdge = edges.find(
+      (edge) => edge.from === node1 && edge.to === node2
+    );
+    return sameDirectionEdge ? true : existingEdges.length >= 2;
+  }
+
+  return existingEdges.length >= 1;
 }
 
 /**
@@ -378,13 +413,18 @@ function draw() {
 
   edges.forEach((edge) => {
     ctx.beginPath();
-    ctx.moveTo(edge.from.x, edge.from.y);
-    ctx.lineTo(edge.to.x, edge.to.y);
+
+    // Apply the offset if it exists
+    const offsetX = edge.offset ? Math.cos(Math.PI / 4) * edge.offset : 0;
+    const offsetY = edge.offset ? Math.sin(Math.PI / 4) * edge.offset : 0;
+
+    ctx.moveTo(edge.from.x + offsetX, edge.from.y + offsetY);
+    ctx.lineTo(edge.to.x + offsetX, edge.to.y + offsetY);
     ctx.stroke();
 
     // Draw edge value
-    const midX = (edge.from.x + edge.to.x) / 2,
-      midY = (edge.from.y + edge.to.y) / 2;
+    const midX = (edge.from.x + edge.to.x) / 2 + offsetX;
+    const midY = (edge.from.y + edge.to.y) / 2 + offsetY;
 
     const offset = 10; // Offset to separate the number from the line.
 
@@ -392,8 +432,8 @@ function draw() {
     const angle = Math.atan2(edge.to.y - edge.from.y, edge.to.x - edge.from.x);
 
     // Calculate the position of the text based on the angle for the connection.
-    const textX = midX + offset * Math.cos(angle - Math.PI / 2),
-      textY = midY + offset * Math.sin(angle - Math.PI / 2);
+    const textX = midX + offset * Math.cos(angle - Math.PI / 2);
+    const textY = midY + offset * Math.sin(angle - Math.PI / 2);
 
     // Draw the text.
     ctx.fillStyle = "black";
@@ -473,6 +513,7 @@ function resetCanvas() {
  *
  * The file contains the nodes' positions and the connections between them.
  * The format is as follows:
+ * enableDirectedEdges: {true/false}
  * Node {id}: ({x},{y})
  * ({from}:{to},{value})
  *
@@ -480,7 +521,9 @@ function resetCanvas() {
  */
 function exportData() {
   // Create a string to store the text to export.
-  let exportText = "";
+  let exportText = `enableDirectedEdges: ${
+    document.getElementById("enableDirectedEdges").checked
+  }\n`;
 
   // Iterate over the nodes and connections to create the text.
   nodes.forEach((node) => {
@@ -538,6 +581,16 @@ function importData(event) {
     // Iterate over the lines to create the nodes and connections.
     try {
       for (const line of lines) {
+        // Check for the enableDirectedEdges line
+        if (line.startsWith("enableDirectedEdges:")) {
+          const enabled = line.split(":")[1].trim() === "true";
+          document.getElementById("enableDirectedEdges").checked = enabled;
+
+          checkDirectedEdges();
+
+          continue;
+        }
+
         // Nodes should always go first, if this is a node parse it.
         if (line.startsWith("Node")) {
           // Extract its ID, x, and y coordinates.
