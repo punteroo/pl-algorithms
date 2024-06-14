@@ -6,6 +6,12 @@
   <img src="https://img.shields.io/badge/UTN-FRVM-blue"/>
 </p>
 
+<p align="center">
+  <a href="https://punteroo.github.io/pl-algorithms" target="_blank">
+    <img src="https://img.shields.io/badge/Acceder a la Herramienta-Click Aqui-blue?logo=curl&style=for-the-badge"/>
+  </a>
+</p>
+
 ## Descripción
 
 Este repositorio contiene el proyecto desarrollado para el 3er parcial de la materia **Investigación Operativa** en la **Universidad Tecnológica Nacional, Facultad Regional Villa María (UTN FRVM)**. El objetivo principal del proyecto es la implementación de un graficador de nodos y conexiones en **JavaScript** y **HTML**. Este graficador facilita la visualización y resolución de problemas de red, correspondiendo a la unidad de "Modelos de Red" de la materia.
